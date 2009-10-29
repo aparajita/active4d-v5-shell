@@ -94,7 +94,7 @@ end method
 
 method "deleteSelection"($inTable; $inTimeoutURL = ""; $inTimeout = 2)
 	
-	return (_doSelectionOp($inTable; ""; $inTimoutURL; $inTimeout))
+	return (_doSelectionOp($inTable; ""; $inTimeoutURL; $inTimeout))
 	
 end method
 
@@ -341,14 +341,15 @@ method "cud"($cudAction; $cudTable; $cudProcessor; $attributes = 0; $cudTimestam
 	end if
 
 	$cudPhase := "cleanup"
+	$cudResult_ := $cudResult
 
 	if ($cudInclude)
 		include($cudProcessor)
 	else
-		$cudResult := call method($cudProcessor; $cudAction; $cudPhase; $cudTable; $cudResult; $attributes; $cudTimestampField; $cudTimestamp)
+		call method($cudProcessor; $cudAction; $cudPhase; $cudTable; $cudResult; $attributes; $cudTimestampField; $cudTimestamp)
 	end if
 	
-	return ($cudResult)
+	return ($cudResult_)
 	
 end method
 
