@@ -103,7 +103,7 @@ if (picture size($pict) > 0)
 	
 	if ($format = "")
 		if ($preferredFormat = "")
-			$format := "gif"
+			$format := "png"
 		else
 			$format := $preferredFormat
 		end if
