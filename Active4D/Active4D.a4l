@@ -52,7 +52,8 @@ end method
 	
 		- If you want to change the request URL or query string,
 		  return the new URL and change the _query collection.
-		  The URL must be converted to ISO-8859-1 and URL encoded.
+		  The URL must be in straight Unicode. Do not convert 
+		  to ISO-8859-1 or URL encode.
 		  
 		- To make no change, return nothing or an empty string.
 		

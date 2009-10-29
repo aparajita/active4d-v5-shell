@@ -980,7 +980,7 @@ method "getEmptyFields"($inFieldList)
 	$invalidFields := ""
 	
 	for ($i; 1; $numFields)
-		if (not(is array(type(_form{$fields{$i}))))
+		if (not(is array(type(_form{$fields{$i}}))))
 			$field := trim(_form{$fields{$i}})
 		
 			if ($field = "")
