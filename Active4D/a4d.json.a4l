@@ -546,7 +546,7 @@ library "a4d.json"
 		// If the next to last character is ",", overwrite with the array end.
 		
 		if ($self{"_rep"}[[-1]] = ",")
-			$self{"_rep"}[[-1]] = "]"
+			$self{"_rep"}[[-1]] := "]"
 			$self{"_rep"} += ","
 		else
 			$self{"_rep"} += "],"
