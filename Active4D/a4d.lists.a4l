@@ -222,8 +222,8 @@ end method
 	$inDelim	->	String		List delimiter
 	RESULT		<-	Number		Index of first matching element, or zero if no match
 	
-	Returns index of first matching element in the list that exactly matches 
-	a string, doing a case- and diacritical-sensitive match.
+	Returns index of first matching element in the list that matches 
+	a string, doing a case- and diacritical-insensitive match.
 ************************************************************************************************/
 
 method "findNoCase"($inList; $inMatch; $inDelim = ",")

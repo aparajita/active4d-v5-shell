@@ -662,9 +662,11 @@ method "dump selection"($inTable; $inFields = "")
 	
 	if ($numFields = 0)
 		// Get the fields from the structure
-		for ($i; 1; count fields($inTable))
-			$fields{} := field($tableNum; $i)
-			$fieldNames{} := field name($tableNum; $i)
+		for ($i; 1; get last field number($inTable))
+			if (is field number valid($tableNum; $i))
+				$fields{} := field($tableNum; $i)
+				$fieldNames{} := field name($tableNum; $i)
+			end if
 		end for
 		
 		resize array($fieldFormats; size of array($fields))

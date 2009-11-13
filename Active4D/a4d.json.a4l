@@ -235,8 +235,10 @@ library "a4d.json"
 				// If no map is passed, construct one for $inTable
 				$inMap := new collection
 			
-				for ($i; 1; count fields($inTable))
-					$inMap{field name($tableNum; $i)} := field($tableNum; $i)
+				for ($i; 1; get last field number($tableNum))
+					if (is field number valid($tableNum; $i))
+						$inMap{field name($tableNum; $i)} := field($tableNum; $i)
+					end if
 				end for
 			else
 				$rowCallback := $inMap{"a4d.json.callback"}
