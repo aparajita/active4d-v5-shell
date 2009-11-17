@@ -11,16 +11,19 @@ library "a4d.debug"
 /**********************************************************************************
 	dump array
 
-	$inArray			->	Array		Array to display
-	$inDisplayInline	->	Boolean		True to display array contents in 1 cell
-	$inName				->	Text		If empty, variable referred to by $inArray
-										is used, else this name
+	$inArray				->	Array		Array to display
+	$inDisplayInline		->	Boolean		True to display array contents in 1 cell
+	$inName					->	Text		If empty, variable referred to by $inArray
+											is used, else this name
+	$inDisplayCollections	->	Boolean		True to display collections if $inDisplayInline
+											is false and a numeric array value is a 
+											collection handle
 
 	Note that we pass $inArray by reference. This allows us to access $inArray
 	as if it were a pointer to an array, but without having to dereference.
 **********************************************************************************/
 
-method "dump array"(&$inArray; $inDisplayInline = false; $inName = "")
+method "dump array"(&$inArray; $inDisplayInline = false; $inName = ""; $inDisplayCollections = false)
 	
 	c_boolean($isText)
 	$isText := (type($inArray) = Text array) | (type($inArray) = String array)
@@ -47,6 +50,7 @@ method "dump array"(&$inArray; $inDisplayInline = false; $inName = "")
 	
 	addDumpStyles
 	writeln('''
+<div>
 <div class="a4d-debug">
 <table cellspacing="1">
   <tr>
@@ -77,18 +81,25 @@ method "dump array"(&$inArray; $inDisplayInline = false; $inName = "")
 		$size := size of array($inArray)
 		
 		for ($i; 0; $size)
+			$isCollection := false
+			$type := type($inArray)
+			
 			case of
-				:(type($inArray) = Text array) | (type($inArray) = String array)
+				:($type = Text array) | ($type = String array)
 					$value := mac to html(enclose($inArray{$i}); *) + "</td>\n    <td>" + length($inArray{$i})
 					
-				:(type($inArray) = Pointer array)
+				:($type = Pointer array)
 					$value := a4d.utils.getPointerReferent($inArray{$i})
 					
-				:(type($inArray) = Picture array)
+				:($type = Picture array)
 					$value := a4d.utils.getPictureDescriptor($inArray{$i})
 					
-				:(type($inArray) = Date array)
+				:($type = Date array)
 					$value := string($inArray{$i}; Abbr Month Day)
+					
+				:($type = longint array) | ($type = real array)
+					$value := $inArray{$i}
+					$isCollection := is a collection($value) & $inDisplayCollections
 			else
 				$value := $inArray{$i}
 			end case
@@ -102,12 +113,20 @@ method "dump array"(&$inArray; $inDisplayInline = false; $inName = "")
 			writeln('''
   <tr>
     <td class="label num $class">$i</td>
-    <td>$value</td>
-  </tr>''')
+    <td>''')
+
+			if ($isCollection)
+				a4d.debug.dump collection($value; ""; false; false)
+			else
+				writeln($value)
+			end if
+			
+			writeln("""</td>
+  </tr>""")
 		end for
 	end if
 	
-	writeln("</table>\n</div>")
+	writeln("</table>\n</div>\n</div>")
 	
 end method
 
@@ -119,19 +138,25 @@ end method
 	$inReference	->	Collection | Iterator	Iterator to the collection to display
 	$inName			->	String					Name of the dumped entity
 	$inShowType		-> 	Boolean					True to show the value's type
+	$inInlineArrays	->	Boolean					True to display arrays inline
 	
 	Creates a formatted dump of a collection.
 **********************************************************************************/
 
-method "dump collection"(&$inReference; $inName = ""; $inShowType = false)
+method "dump collection"(&$inReference; $inName = ""; $inShowType = false; $inInlineArrays = true)
+	
+	if (type($inReference) # is longint) & (type($inReference) # is real)
+		writebr("<p>The collection reference passed in is neither an iterator nor a collection handle.</p>")
+		return
+	end if
 	
 	c_longint($it)
 	
 	case of
-		: (is an iterator($inReference))
+		:(is an iterator($inReference))
 			$it := $inReference
 	
-		: (is a collection($inReference))
+		:(is a collection($inReference))
 			$it := collection($inReference)
 	else
 		writebr("<p>The collection reference passed in is neither an iterator nor a collection handle.</p>")
@@ -144,6 +169,7 @@ method "dump collection"(&$inReference; $inName = ""; $inShowType = false)
 	
 	addDumpStyles
 	writeln('''
+<div>
 <div class="a4d-debug">
 <table cellspacing="0">
 <tr>
@@ -152,8 +178,8 @@ method "dump collection"(&$inReference; $inName = ""; $inShowType = false)
   <tr>
     <td colspan="`choose($inShowType; 3; 2)`" class="title">`$inName | "Unnamed collection"`</td>
   </tr>''')
-	_writeCollectionItems($it; true; $inShowType)
-	write("</table>\n</td></tr>\n</table>\n</div>\n")
+	_writeCollectionItems($it; true; $inShowType; ""; $inInlineArrays)
+	write("</table>\n</td></tr>\n</table>\n</div>\n</div>\n")
 	
 end method
 
@@ -166,9 +192,10 @@ end method
 	$inShowHeader	->	Boolean		True to display column headers
 	$inShowType		-> 	Boolean		True to show the value's type
 	$inFilter		->	Text		Items matching this regexp are hidden
+	$inInlineArrays	->	Boolean		True to display arrays inline
 **********************************************************************************/
 
-method "_writeCollectionItems"($inIterator; $inShowHeader = true; $inShowType = false; $inFilter = "")
+method "_writeCollectionItems"($inIterator; $inShowHeader = true; $inShowType = false; $inFilter = ""; $inInlineArrays = true)
 	
 	if ($inShowHeader)
 		write("<tr>\n")
@@ -209,13 +236,18 @@ method "_writeCollectionItems"($inIterator; $inShowHeader = true; $inShowType = 
 			$valueStr := ""
 			$typeStr := ""
 			$valueIsCollection := false
+			$valueIsArray := false
 		
 			write("<tr>\n")
 			write('<td class="label">$key</td>\n')
 		
 			case of
 				:(is array($type))
-					$valueStr := '[$inIterator{$key}] {`join array($inIterator{$key}; ", "; 0; false; true)`}'	`no element number, quote text
+					if ($inInlineArrays)
+						$valueStr := '[$inIterator{$key}] {`join array($inIterator{$key}; ", "; 0; false; true)`}'	`no element number, quote text
+					else
+						$valueIsArray := true
+					end if					
 				
 				:($type = Is Text)
 					$valueStr := enclose($value)
@@ -252,15 +284,19 @@ method "_writeCollectionItems"($inIterator; $inShowHeader = true; $inShowType = 
 		
 			write("<td>")
 		
-			if ($valueIsCollection)
-				a4d.debug.dump collection($value; $key; $inShowType)
+			case of
+				:($valueIsCollection)
+					a4d.debug.dump collection($value; $key; $inShowType; $inInlineArrays)
+				
+				:($valueIsArray)
+					a4d.debug.dump array($inIterator{$key}; false; $key; true)
 			else
 				if (not(is array($type)) & (length($valueStr) = 0))
 					$valueStr := string($value)
 				end if
 			
 				write(cell(mac to html($valueStr; *)))
-			end if
+			end case
 		
 			write("</td>\n</tr>\n")
 			next item($inIterator)
@@ -280,11 +316,14 @@ end method
 
 /**********************************************************************************
 	dump session
+
+	$inShowType		-> 	Boolean					True to show the value's type
+	$inInlineArrays	->	Boolean					True to display arrays inline
 	
 	Dumps the contents of the current session in an easy to read format.
 ***********************************************************************************/
 
-method "dump session"
+method "dump session"($inShowType = true; $inInlineArrays = true)
 	
 	if (session internal id = 0)
 		write("<p>There is no current session.</p>\n")
@@ -297,7 +336,7 @@ method "dump session"
 			$timeout := "{0,number,#########0} minutes" %% ($timeout)
 		end if
 		
-		a4d.debug.dump collection(session; 'Session [`session internal id`/`session id`]<br /><span style="font-weight: normal">Timeout: $timeout</span>'; true)
+		a4d.debug.dump collection(session; 'Session [`session internal id`/`session id`]<br /><span style="font-weight: normal">Timeout: $timeout</span>'; $inShowType; $inInlineArrays)
 	end if
 	
 end method
@@ -361,6 +400,7 @@ method "dump session stats"($inSortBy = "time remaining"; $inDir = ">")
 	
 	addDumpStyles
 	writeln('''
+<div>
 <div class="a4d-debug">
 <table cellspacing="1">
   <tr>
@@ -394,7 +434,7 @@ method "dump session stats"($inSortBy = "time remaining"; $inDir = ">")
   </tr>''')
 	end for
 	
-	write("</table>\n</div>\n")
+	write("</table>\n</div>\n</div>\n")
 	
 end method
 
@@ -493,7 +533,7 @@ method "dump license info"
 	$exp := string($exp; Abbr Month Day)
 	addDumpStyles
 	write('''
-<div class="a4d-debug">
+<div><div class="a4d-debug">
 <table cellspacing="1">
   <tr>
     <td colspan="2" class="title">License Info</td>
@@ -556,6 +596,7 @@ method "dump license info"
 	write('''
 </table>
 </div>
+</div>
 ''')
 	
 end method
@@ -577,6 +618,7 @@ method "dump locals"($inDumpChain = false; $inShowFusebox = false)
 	
 	addDumpStyles
 	writeln('''
+<div>
 <div class="a4d-debug">
 <table cellspacing="1">''')
 
@@ -609,7 +651,7 @@ method "dump locals"($inDumpChain = false; $inShowFusebox = false)
 		_writeCollectionItems(local variables($chain{$i}); $i = 1; true; $filter)
 	end for
 	
-	write("</table>\n</div>\n")
+	write("</table>\n</div>\n</div>\n")
 	
 end method
 
@@ -717,6 +759,7 @@ method "dump selection"($inTable; $inFields = "")
 	// Write the header
 	addDumpStyles
 	writeln('''
+<div>
 <div class="a4d-debug">
 <table cellspacing="1">
   <tr>
@@ -781,7 +824,7 @@ method "dump selection"($inTable; $inFields = "")
 		writeln('  <tr>\n    <td colspan="`size of array($fields) + 1`">[Empty selection]</td>\n  </tr>')
 	end if
 	
-	writeln("</table>\n</div>")
+	writeln("</table>\n</div>\n</div>")
 	
 end method
 
@@ -811,6 +854,10 @@ method "writeDumpStyles"
 
 	write("""
 <style type="text/css">
+
+div.a4d-debug {
+	display: inline-block;  /* shrink to fit */
+}
 
 div.a4d-debug, div.a4d-debug th, div.a4d-debug td {
 	font: normal 11px Verdana, Helvetica, Arial, sans-serif;

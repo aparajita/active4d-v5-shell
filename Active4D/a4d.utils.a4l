@@ -8,11 +8,13 @@ library "a4d.utils"
 
 
 // Constants for use with truncateText
-
 define(kTruncateText_Start; 1)
 define(kTruncateText_Middle; 2)
 define(kTruncateText_End; 3)
 
+
+// Constant used to mark the end of a serialized collection
+define(kCollectionDataEnd; "\r>>>\n")
 
 
 /*
@@ -913,6 +915,7 @@ method "camelCaseText"($inText; $inExceptions = "")
 end method
 
 
+
 /***********************************************************************************
 	chopText
 	
@@ -933,6 +936,202 @@ method "chopText"($inText)
 	end while
 
 	return ($result + $inText)
+	
+end method
+
+
+
+/***********************************************************************************
+	collectionToBlob
+	
+	$inCollection	->	Collection	Collection to serialize
+	$ioBlob			<->	BLOB		Receives the serialized collection	
+	
+	Recursively serializes $inCollection and any embedded collections to $ioBlob.
+***********************************************************************************/
+
+method "collectionToBlob"($inCollection; &$ioBlob)
+	
+	_collectionToBlob($inCollection; $ioBlob; ""; 1)
+	
+end method
+
+
+
+/***********************************************************************************
+	sessionToBlob
+	
+	$ioBlob	<->	BLOB	Receives the serialized session	
+	
+	Recursively serializes the current session and any embedded collections
+	to $ioBlob.
+***********************************************************************************/
+
+method "sessionToBlob"(&$ioBlob)
+	
+	_collectionToBlob(session; $ioBlob; ""; 1)
+	
+end method
+
+
+
+/***********************************************************************************
+	_collectionToBlob
+	
+	$inCollection	->	Collection	Collection to serialize
+	$ioBlob			<->	BLOB		Receives the serialized collection	
+	$inName			->	Text		The item name for the collection within its parent
+	$inLevel		->	Number		Recursion level
+	
+	Private helper for _collectionToBlob, should not be called directly. 
+***********************************************************************************/
+
+method "_collectionToBlob"($inCollection; &$ioBlob; $inName; $inLevel)
+	
+	longint to blob($inLevel; $ioBlob; little endian byte ordering; *)
+	text to blob($inName; $ioBlob; utf8 text with length; *)
+	collection to blob($inCollection; $ioBlob)
+	
+	for each($inCollection; $key)
+		$type := type($inCollection{$key})
+		
+		case of
+			:($type = is longint) | ($type = is real)
+				$value := $inCollection{$key}
+				
+				if (is a collection($value))
+					_collectionToBlob($value; $ioBlob; $key; $inLevel + 1)
+				end if
+				
+			:($type = longint array) | ($type = real array)
+				for ($i; 0; size of array($inCollection{$key}))
+					if (is a collection($inCollection{$key}{$i}))
+						_collectionToBlob($inCollection{$key}{$i}; $ioBlob; '\t$key\t$i'; $inLevel + 1)
+					end if
+				end for
+		end case
+	end for each			
+	
+	// Write the decremented level, which marks the end of this collection.
+	longint to blob($inLevel - 1; $ioBlob; little endian byte ordering; *)
+	
+end method
+
+
+
+/***********************************************************************************
+	blobToCollection
+	
+	$inBlob		->	Contains the serialized collection
+	$ioOffset	<->	Offset within $inBlob to get serialized data	
+	$inGlobal	->	True to return a global collection, false to return a local
+	RESULT		<-	New collection
+	
+	Recursively deserializes a collection serialized with collectionToBlob().
+***********************************************************************************/
+
+method "blobToCollection"($inBlob; &$ioOffset; $inGlobal)
+	
+	// First is the recursion level, which starts at 1
+	$level := blob to longint($inBlob; little endian byte ordering; $ioOffset)
+	
+	if ($level # 1)
+		return (0)
+	end if
+	
+	// Next is an empty name
+	$key := blob to text($inBlob; utf8 text with length; $ioOffset)
+	
+	if ($inGlobal)
+		$col := blob to collection($inBlob; $ioOffset; *)
+	else
+		$col := blob to collection($inBlob; $ioOffset)
+	end if
+	
+	_blobToCollection($inBlob; $ioOffset; $inGlobal; $col; 1)
+	return ($col)
+	
+end method
+
+
+
+/***********************************************************************************
+	blobToSession
+	
+	$inBlob		->	Contains the serialized collection
+	$ioOffset	<->	Offset within $inBlob to get serialized data	
+	
+	Recursively deserializes a session serialized with sessionToBlob().
+***********************************************************************************/
+
+method "blobToSession"($inBlob; &$ioOffset)
+	
+	// First is the recursion level, which starts at 1
+	$level := blob to longint($inBlob; little endian byte ordering; $ioOffset)
+	
+	if ($level # 1)
+		return (0)
+	end if
+	
+	// Next is an empty name
+	$key := blob to text($inBlob; utf8 text with length; $ioOffset)
+	
+	// Then the session data
+	blob to session($inBlob; $ioOffset)
+	
+	// Because a session is persistent, embedded collections must be global
+	_blobToCollection($inBlob; $ioOffset; true; session; 1)
+	
+end method
+
+
+
+/***********************************************************************************
+	_blobToCollection
+	
+	$inBlob		->	Contains the serialized collection
+	$ioOffset	<->	Offset within $inBlob to get serialized data	
+	$inGlobal	->	True to return a global collection, false to return a local
+	$inParent	->	Parent collection in which to store the deserialized collection
+	$inLevel	->	Recursion level
+	
+	Private helper for blobToCollection, do not call directly.
+***********************************************************************************/
+
+method "_blobToCollection"($inBlob; &$ioOffset; $inGlobal; $inParent; $inLevel)
+	
+	while (true)
+		// First is the level of the item
+		$level := blob to longint($inBlob; little endian byte ordering; $ioOffset)
+		
+		// A lower level means the end of this level
+		if ($level < $inLevel)
+			return
+		end if
+	
+		// Next is the name of the item within the parent
+		$key := blob to text($inBlob; utf8 text with length; $ioOffset)
+		
+		// Then the collection data
+		if ($inGlobal)
+			$col := blob to collection($inBlob; $ioOffset; *)
+		else
+			$col := blob to collection($inBlob; $ioOffset)
+		end if
+
+		// If the first character of the key is \t, it is an array element
+		if ($key[[1]] = "\t")
+			$key := slice string(substring($key; 2); "\t"; $index)
+			$inParent{$key}{num($index)} := $col
+		else
+			$inParent{$key} := $col
+		end if
+
+		if ($level > $inLevel)
+			// Recurse downward
+			_blobToCollection($inBlob; $ioOffset; $inGlobal; $col; $level)
+		end if
+	end while
 	
 end method
 

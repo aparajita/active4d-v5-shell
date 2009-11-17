@@ -614,9 +614,7 @@ library "a4d.json"
 	method "write"($self; $inSetContentType = true)
 		
 		$cs := get output charset
-		set output charset(A4D Charset None)
 		write raw(toJSON($self))
-		set output charset($cs)
 		
 		if ($inSetContentType)
 			set content type("application/json")
