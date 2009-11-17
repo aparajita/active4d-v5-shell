@@ -988,7 +988,7 @@ end method
 
 method "_collectionToBlob"($inCollection; &$ioBlob; $inName; $inLevel)
 	
-	longint to blob($inLevel; $ioBlob; little endian byte ordering; *)
+	longint to blob($inLevel; $ioBlob; intel byte ordering; *)
 	text to blob($inName; $ioBlob; utf8 text with length; *)
 	collection to blob($inCollection; $ioBlob)
 	
@@ -1013,7 +1013,7 @@ method "_collectionToBlob"($inCollection; &$ioBlob; $inName; $inLevel)
 	end for each			
 	
 	// Write the decremented level, which marks the end of this collection.
-	longint to blob($inLevel - 1; $ioBlob; little endian byte ordering; *)
+	longint to blob($inLevel - 1; $ioBlob; intel byte ordering; *)
 	
 end method
 
@@ -1033,7 +1033,7 @@ end method
 method "blobToCollection"($inBlob; &$ioOffset; $inGlobal)
 	
 	// First is the recursion level, which starts at 1
-	$level := blob to longint($inBlob; little endian byte ordering; $ioOffset)
+	$level := blob to longint($inBlob; intel byte ordering; $ioOffset)
 	
 	if ($level # 1)
 		return (0)
@@ -1067,7 +1067,7 @@ end method
 method "blobToSession"($inBlob; &$ioOffset)
 	
 	// First is the recursion level, which starts at 1
-	$level := blob to longint($inBlob; little endian byte ordering; $ioOffset)
+	$level := blob to longint($inBlob; intel byte ordering; $ioOffset)
 	
 	if ($level # 1)
 		return (0)
@@ -1102,7 +1102,7 @@ method "_blobToCollection"($inBlob; &$ioOffset; $inGlobal; $inParent; $inLevel)
 	
 	while (true)
 		// First is the level of the item
-		$level := blob to longint($inBlob; little endian byte ordering; $ioOffset)
+		$level := blob to longint($inBlob; intel byte ordering; $ioOffset)
 		
 		// A lower level means the end of this level
 		if ($level < $inLevel)
