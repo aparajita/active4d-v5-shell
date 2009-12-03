@@ -240,7 +240,7 @@ method "newFromData"($inData; $inRowDelimiter = "\n"; $inColumnDelimiter = ","; 
 	
 	$inColumnDelimiter := regex quote pattern($inColumnDelimiter[[1]])
 	$inRowDelimiter := regex quote pattern($inRowDelimiter)
-	$pattern := "/\"?(.*?)\"?[{0}{1}]/" %% ($inColumnDelimiter; $inRowDelimiter)
+	$pattern := "/(\"?)(.*?)\\1[{0}{1}]/" %% ($inColumnDelimiter; $inRowDelimiter)
 	$numColumns := regex match all($pattern; $line; $columns)
 	get collection keys($columns; $keys)
 	sort array($keys)
@@ -254,7 +254,7 @@ method "newFromData"($inData; $inRowDelimiter = "\n"; $inColumnDelimiter = ","; 
 	array text($matches; 0)
 	
 	for ($i; 1; $numColumns)
-		$columnName := trim(slice string($columns{$keys{$i}}{1}; ":"; $type))
+		$columnName := trim(slice string($columns{$keys{$i}}{2}; ":"; $type))
 		
 		if ($columnName = "")
 			throw('RowSet: empty column name in column $i.')
@@ -338,15 +338,15 @@ method "newFromData"($inData; $inRowDelimiter = "\n"; $inColumnDelimiter = ","; 
 			
 			case of
 				:($columnType = Is Longint) | ($columnType = Is Real)
-					$self{"_columnMap"}{$columnName}{} := num($columns{$keys{$i}}{1})
+					$self{"_columnMap"}{$columnName}{} := num($columns{$keys{$i}}{2})
 					
 				:($columnType = Is Date)
-					$self{"_columnMap"}{$columnName}{} := date($columns{$keys{$i}}{1})
+					$self{"_columnMap"}{$columnName}{} := date($columns{$keys{$i}}{2})
 					
 				:($columnType = Is Boolean)
-					$self{"_columnMap"}{$columnName}{} := $columns{$keys{$i}}{1} = "true"
+					$self{"_columnMap"}{$columnName}{} := $columns{$keys{$i}}{2} = "true"
 			else
-				$self{"_columnMap"}{$columnName}{} := $columns{$keys{$i}}{1}
+				$self{"_columnMap"}{$columnName}{} := $columns{$keys{$i}}{2}
 			end case					
 		end for
 	end while
