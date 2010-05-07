@@ -708,6 +708,7 @@ method "truncateText"($inText; $inWidth; $inTruncateMode)
 			
 	else
 		return ($inText)
+	end case
 		
 end method
 

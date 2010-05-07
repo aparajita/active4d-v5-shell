@@ -349,7 +349,7 @@ method "dump license info"
 			$timeRemaining := "Expired"
 	end case
 
-	$licenseType := a4d.lists.getAt("Trial,Developer,Deployment,OEM,Special,Expired"; $license + 1)
+	$licenseType := a4d.lists.getAt("Trial,Developer,Deployment,OEM,Special,Expired,ScriptTools"; $license + 1)
 	$exp := string($exp; Abbr Month Day)
 	
 	write to console(" License type:%|21t|%s" % ($licenseType))
