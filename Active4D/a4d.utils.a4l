@@ -41,15 +41,21 @@ define(kCollectionDataEnd; "\r>>>\n")
 
 method "unlockAndLoad"($inTable; $inRecNum = -1; $inTimeoutURL = ""; $inTimeout = 2)
 	
-	if ($inRecNum = -1)
-		$inRecNum := record number($inTable->)
-	end if
-	
-	c_boolean($timedOut; $readOnlyState)
-	$timedOut := false
-	$readOnlyState := read only state($inTable->)
-	read write($inTable->)
-	goto record($inTable->; $inRecNum)
+    if (not(execute in 4d("in transaction"; *)))
+        if ($inRecNum = -1)
+            $inRecNum := record number($inTable->)
+        end if
+
+        goto record($inTable->; $inRecNum)
+    end if
+
+    c_boolean($timedOut; $readOnlyState)
+    $timedOut := false
+    $readOnlyState := read only state($inTable->)
+    unload record($inTable->)
+    read write($inTable->)
+    load record($inTable->)
+
 	c_longint($ticks)
 	$ticks := tickcount
 	

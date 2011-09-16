@@ -39,7 +39,7 @@ case of
 					$qryPtr := get field pointer($table; $field)
 					
 					if (not(nil($qryPtr)))
-						get field properties($imgPtr; $type)
+						get field properties($qryPtr; $type)
 						
 						if ($type = Is Alpha Field)
 							$value := $params{"qry_value"}
