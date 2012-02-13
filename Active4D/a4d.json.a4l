@@ -1,5 +1,7 @@
 /*
 	a4d.json library
+
+	Copyright (c) Aparajita Fishman, All Rights Reserved
 */
 
 library "a4d.json"
